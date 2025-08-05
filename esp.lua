@@ -1,77 +1,56 @@
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
+local Players = game:GetService("Players")
+local camera = workspace.CurrentCamera
 local localPlayer = Players.LocalPlayer
 
--- Renkler
-local ROLE_COLORS = {
-    Murderer = Color3.fromRGB(255, 0, 0),  -- Kırmızı
-    Sheriff = Color3.fromRGB(0, 0, 255)    -- Mavi
-}
+local espBoxes = {}
 
--- ESP yaratma fonksiyonu
-local function createESP(player, role)
-    if not player.Character then return end
-    local head = player.Character:FindFirstChild("Head")
-    if not head then return end
-
-    -- Aynı anda sadece bir ESP olsun
-    if head:FindFirstChild("RoleESP") then return end
-
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "RoleESP"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 100, 0, 30)
-    billboard.AlwaysOnTop = true
-    billboard.StudsOffset = Vector3.new(0, 2, 0)
-    billboard.Parent = head
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = ROLE_COLORS[role] or Color3.new(1, 1, 1)
-    label.TextStrokeTransparency = 0
-    label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
-    label.Text = role == "Murderer" and "KATİL" or "ŞERİF"
-    label.Parent = billboard
-end
-
--- ESP silme fonksiyonu
-local function removeESP(player)
-    if not player.Character then return end
-    local head = player.Character:FindFirstChild("Head")
-    if not head then return end
-
-    local esp = head:FindFirstChild("RoleESP")
-    if esp then
-        esp:Destroy()
-    end
-end
-
--- Oyuncunun rolünü Tool'a göre bul
-local function getRole(player)
-    if not player.Character then return nil end
-    local tool = player.Character:FindFirstChildOfClass("Tool")
-    if tool then
-        if tool.Name == "Knife" then
-            return "Murderer"
-        elseif tool.Name == "Gun" then
+function getRole(player)
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        if backpack:FindFirstChild("Gun") then
             return "Sheriff"
+        elseif backpack:FindFirstChild("Knife") then
+            return "Murderer"
         end
     end
-    return nil
+    return "Innocent"
 end
 
--- Sürekli kontrol et ve ESP güncelle
 RunService.RenderStepped:Connect(function()
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= localPlayer then
-            local role = getRole(player)
-            if role then
-                createESP(player, role)
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = player.Character.HumanoidRootPart
+            local pos, onScreen = camera:WorldToViewportPoint(rootPart.Position)
+            if onScreen then
+                if not espBoxes[player] then
+                    local box = Instance.new("Frame")
+                    box.Size = UDim2.new(0, 100, 0, 50)
+                    box.AnchorPoint = Vector2.new(0.5, 0.5)
+                    box.BackgroundTransparency = 0.5
+                    box.BorderSizePixel = 1
+                    box.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+                    espBoxes[player] = box
+                end
+                local box = espBoxes[player]
+                box.Position = UDim2.new(0, pos.X, 0, pos.Y)
+                local role = getRole(player)
+                if role == "Murderer" then
+                    box.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Katil kırmızı
+                elseif role == "Sheriff" then
+                    box.BackgroundColor3 = Color3.fromRGB(0, 0, 255) -- Şerif mavi
+                else
+                    box.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Masum yeşil
+                end
+                box.Visible = true
             else
-                removeESP(player)
+                if espBoxes[player] then
+                    espBoxes[player].Visible = false
+                end
+            end
+        else
+            if espBoxes[player] then
+                espBoxes[player].Visible = false
             end
         end
     end
