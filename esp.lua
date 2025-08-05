@@ -1,63 +1,84 @@
--- LocalScript içinde çalışacak bir ESP scripti
+--// GUI OLUŞTUR
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "ESPGUI"
 
-local Players = game:GetService("Players")
-local Camera = game:GetService("Workspace").CurrentCamera
-local RunService = game:GetService("RunService")
+local frame = Instance.new("Frame", gui)
+frame.Position = UDim2.new(0, 20, 0, 100)
+frame.Size = UDim2.new(0, 160, 0, 200)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
 
--- Kırmızı renk tanımlaması
-local Red = Color3.fromRGB(255, 0, 0)
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "ESP Kontrol"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundColor3 = Color3.fromRGB(50,50,50)
+title.BorderSizePixel = 0
 
--- ESP kutusunu oluşturma fonksiyonu
-local function createESP(player)
-    -- Oyuncunun karakterinin etrafında bir Frame oluşturma
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+--// Renk Düğmeleri
+local colors = {
+    {Name = "Kırmızı", Color = Color3.fromRGB(255, 0, 0)},
+    {Name = "Yeşil", Color = Color3.fromRGB(0, 255, 0)},
+    {Name = "Mavi", Color = Color3.fromRGB(0, 0, 255)},
+    {Name = "Sarı", Color = Color3.fromRGB(255, 255, 0)},
+}
 
-    -- ESP kutusunun oluşturulması
-    local espFrame = Instance.new("Frame")
-    espFrame.Size = UDim2.new(0, 100, 0, 100)  -- Başlangıç boyutu
-    espFrame.Position = UDim2.new(0, 0, 0, 0)  -- Başlangıç pozisyonu
-    espFrame.BackgroundColor3 = Red
-    espFrame.BackgroundTransparency = 0.5  -- Yarı şeffaf kutu
-    espFrame.BorderSizePixel = 0
-    espFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    espFrame.Visible = true
+local toggle = true
+local currentColor = colors[1].Color
 
-    -- Yumuşak kenar efekti ekleyelim
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)  -- Yumuşak köşe
-    corner.Parent = espFrame
+function updateAllESP()
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer and player.Character then
+            local old = player.Character:FindFirstChild("ESPHighlight")
+            if old then old:Destroy() end
 
-    -- ESP kutusunu oyuncunun GUI'sine ekliyoruz
-    espFrame.Parent = game.Players.LocalPlayer.PlayerGui
-
-    -- Sürekli oyuncuyu takip etme (Character'nin hareketini izleme)
-    local function updatePosition()
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            -- Ekrandaki pozisyonu güncelle
-            local screenPosition, onScreen = Camera:WorldToScreenPoint(character.HumanoidRootPart.Position)
-            -- Ekran dışı olsa da ESP kutusunu göster
-            espFrame.Position = UDim2.new(0, screenPosition.X, 0, screenPosition.Y)
-            espFrame.Visible = true  -- Her durumda görünür yapıyoruz
-        else
-            espFrame:Destroy()  -- Eğer karakter yoksa ESP'yi yok et
+            if toggle then
+                local h = Instance.new("Highlight")
+                h.Name = "ESPHighlight"
+                h.Adornee = player.Character
+                h.FillColor = currentColor
+                h.FillTransparency = 0.5
+                h.OutlineColor = Color3.new(1,1,1)
+                h.OutlineTransparency = 0
+                h.Parent = player.Character
+            end
         end
     end
-
-    -- Sürekli olarak güncelleme
-    RunService.RenderStepped:Connect(updatePosition)
 end
 
--- ESP'nin hangi oyunculara uygulanacağını belirleyelim
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= Players.LocalPlayer then
-        createESP(player)
-    end
+for i, info in ipairs(colors) do
+    local button = Instance.new("TextButton", frame)
+    button.Size = UDim2.new(1, -20, 0, 30)
+    button.Position = UDim2.new(0, 10, 0, 30 + i * 35)
+    button.Text = info.Name
+    button.BackgroundColor3 = info.Color
+    button.TextColor3 = Color3.new(1,1,1)
+    button.MouseButton1Click:Connect(function()
+        currentColor = info.Color
+        updateAllESP()
+    end)
 end
 
--- Yeni bir oyuncu eklenirse, onun için de ESP oluşturulacak
-Players.PlayerAdded:Connect(function(player)
-    if player ~= Players.LocalPlayer then
-        createESP(player)
-    end
+-- Aç/Kapat butonu
+local toggleBtn = Instance.new("TextButton", frame)
+toggleBtn.Size = UDim2.new(1, -20, 0, 30)
+toggleBtn.Position = UDim2.new(0, 10, 1, -40)
+toggleBtn.Text = "ESP: Açık"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.MouseButton1Click:Connect(function()
+    toggle = not toggle
+    toggleBtn.Text = "ESP: " .. (toggle and "Açık" or "Kapalı")
+    updateAllESP()
+end)
+
+-- Başlangıçta oyunculara ESP uygula
+updateAllESP()
+
+-- Yeni oyunculara uygulama
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(1)
+        updateAllESP()
+    end)
 end)
