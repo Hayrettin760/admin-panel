@@ -1,84 +1,78 @@
---// GUI OLUŞTUR
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "ESPGUI"
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
-local frame = Instance.new("Frame", gui)
-frame.Position = UDim2.new(0, 20, 0, 100)
-frame.Size = UDim2.new(0, 160, 0, 200)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
+local localPlayer = Players.LocalPlayer
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "ESP Kontrol"
-title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundColor3 = Color3.fromRGB(50,50,50)
-title.BorderSizePixel = 0
-
---// Renk Düğmeleri
-local colors = {
-    {Name = "Kırmızı", Color = Color3.fromRGB(255, 0, 0)},
-    {Name = "Yeşil", Color = Color3.fromRGB(0, 255, 0)},
-    {Name = "Mavi", Color = Color3.fromRGB(0, 0, 255)},
-    {Name = "Sarı", Color = Color3.fromRGB(255, 255, 0)},
+-- Renkler
+local ROLE_COLORS = {
+    Murderer = Color3.fromRGB(255, 0, 0),  -- Kırmızı
+    Sheriff = Color3.fromRGB(0, 0, 255)    -- Mavi
 }
 
-local toggle = true
-local currentColor = colors[1].Color
+-- ESP yaratma fonksiyonu
+local function createESP(player, role)
+    if not player.Character then return end
+    local head = player.Character:FindFirstChild("Head")
+    if not head then return end
 
-function updateAllESP()
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= game.Players.LocalPlayer and player.Character then
-            local old = player.Character:FindFirstChild("ESPHighlight")
-            if old then old:Destroy() end
+    -- Aynı anda sadece bir ESP olsun
+    if head:FindFirstChild("RoleESP") then return end
 
-            if toggle then
-                local h = Instance.new("Highlight")
-                h.Name = "ESPHighlight"
-                h.Adornee = player.Character
-                h.FillColor = currentColor
-                h.FillTransparency = 0.5
-                h.OutlineColor = Color3.new(1,1,1)
-                h.OutlineTransparency = 0
-                h.Parent = player.Character
-            end
-        end
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "RoleESP"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 100, 0, 30)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.Parent = head
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = ROLE_COLORS[role] or Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Text = role == "Murderer" and "KATİL" or "ŞERİF"
+    label.Parent = billboard
+end
+
+-- ESP silme fonksiyonu
+local function removeESP(player)
+    if not player.Character then return end
+    local head = player.Character:FindFirstChild("Head")
+    if not head then return end
+
+    local esp = head:FindFirstChild("RoleESP")
+    if esp then
+        esp:Destroy()
     end
 end
 
-for i, info in ipairs(colors) do
-    local button = Instance.new("TextButton", frame)
-    button.Size = UDim2.new(1, -20, 0, 30)
-    button.Position = UDim2.new(0, 10, 0, 30 + i * 35)
-    button.Text = info.Name
-    button.BackgroundColor3 = info.Color
-    button.TextColor3 = Color3.new(1,1,1)
-    button.MouseButton1Click:Connect(function()
-        currentColor = info.Color
-        updateAllESP()
-    end)
+-- Oyuncunun rolünü Tool'a göre bul
+local function getRole(player)
+    if not player.Character then return nil end
+    local tool = player.Character:FindFirstChildOfClass("Tool")
+    if tool then
+        if tool.Name == "Knife" then
+            return "Murderer"
+        elseif tool.Name == "Gun" then
+            return "Sheriff"
+        end
+    end
+    return nil
 end
 
--- Aç/Kapat butonu
-local toggleBtn = Instance.new("TextButton", frame)
-toggleBtn.Size = UDim2.new(1, -20, 0, 30)
-toggleBtn.Position = UDim2.new(0, 10, 1, -40)
-toggleBtn.Text = "ESP: Açık"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.MouseButton1Click:Connect(function()
-    toggle = not toggle
-    toggleBtn.Text = "ESP: " .. (toggle and "Açık" or "Kapalı")
-    updateAllESP()
-end)
-
--- Başlangıçta oyunculara ESP uygula
-updateAllESP()
-
--- Yeni oyunculara uygulama
-game.Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        wait(1)
-        updateAllESP()
-    end)
+-- Sürekli kontrol et ve ESP güncelle
+RunService.RenderStepped:Connect(function()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            local role = getRole(player)
+            if role then
+                createESP(player, role)
+            else
+                removeESP(player)
+            end
+        end
+    end
 end)
